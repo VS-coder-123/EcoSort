@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>♻️ EcoSort: The AI Waste Classifier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        
+        .upload-area {
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(34, 197, 94, 0.15);
+        }
+        
+        .upload-area.dragover {
+            border-color: #22c55e;
+            background-color: #f0fdf4;
+            transform: scale(1.02);
+        }
+        
+        .result-card {
+            animation: slideUp 0.5s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .category-badge {
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="min-h-full bg-gradient-to-br from-green-50 to-emerald-100">
+    <div class="min-h-full">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-green-100">
+            <div class="max-w-4xl mx-auto px-4 py-6">
+                <div class="text-center">
+                    <h1 class="text-4xl font-bold text-gray-900 mb-2">
+                        ♻️ EcoSort: The AI Waste Classifier
+                    </h1>
+                    <p class="text-lg text-gray-600">
+                        AI-powered waste segregation for a cleaner tomorrow
+                    </p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-4xl mx-auto px-4 py-8">
+            <!-- Upload Section -->
+            <div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-2">Upload Waste Image</h2>
+                    <p class="text-gray-600">Take a photo or upload an image of waste for instant classification</p>
+                </div>
+                
+                <div id="uploadArea" class="upload-area border-3 border-dashed border-green-300 rounded-xl p-12 text-center cursor-pointer bg-green-50">
+                    <div id="uploadContent">
+                        <div class="text-6xl mb-4">📸</div>
+                        <h3 class="text-xl font-medium text-gray-700 mb-2">Drop your image here</h3>
+                        <p class="text-gray-500 mb-4">or click to browse files</p>
+                        <button class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                            Choose File
+                        </button>
+                    </div>
+                    <input type="file" id="fileInput" accept="image/*" class="hidden">
+                </div>
+                
+                <!-- Image Preview -->
+                <div id="imagePreview" class="hidden mt-6">
+                    <div class="relative inline-block">
+                        <img id="previewImg" class="max-w-full h-64 object-cover rounded-lg shadow-md">
+                        <button id="removeImage" class="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
+                            ×
+                        </button>
+                    </div>
+                    <div class="mt-4">
+                        <button id="classifyBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors">
+                            🔍 Classify Waste
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden bg-white rounded-2xl shadow-lg p-8 mb-8">
+                <div class="text-center">
+                    <div class="loading-spinner w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full mx-auto mb-4"></div>
+                    <h3 class="text-xl font-medium text-gray-700 mb-2">Analyzing your waste...</h3>
+                    <p class="text-gray-500">Our AI is working hard to classify your item</p>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" class="hidden">
+                <div class="result-card bg-white rounded-2xl shadow-lg p-8 mb-8">
+                    <div class="text-center mb-6">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-2">Classification Results</h2>
+                        <p class="text-gray-600">Here's what our AI found</p>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-6 mb-8">
+                        <!-- Primary Classification -->
+                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-3">Primary Classification</h3>
+                            <div id="primaryResult" class="category-badge inline-flex items-center px-4 py-2 rounded-full text-sm font-medium">
+                                <!-- Dynamic content -->
+                            </div>
+                            <div class="mt-3">
+                                <div class="text-sm text-gray-600 mb-1">Confidence</div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div id="primaryConfidence" class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                                <div id="primaryPercentage" class="text-sm text-gray-600 mt-1">0%</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Secondary Classification -->
+                        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-3">Secondary Classification</h3>
+                            <div id="secondaryResult" class="category-badge inline-flex items-center px-4 py-2 rounded-full text-sm font-medium">
+                                <!-- Dynamic content -->
+                            </div>
+                            <div class="mt-3">
+                                <div class="text-sm text-gray-600 mb-1">Confidence</div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div id="secondaryConfidence" class="bg-purple-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                                <div id="secondaryPercentage" class="text-sm text-gray-600 mt-1">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Combined Category -->
+                    <div class="bg-gradient-to-br from-green-50 to-emerald-100 rounded-xl p-6 mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Combined Category</h3>
+                        <div id="combinedResult" class="text-2xl font-bold text-green-700 mb-2">
+                            <!-- Dynamic content -->
+                        </div>
+                        <div id="categoryIcon" class="text-4xl mb-2">
+                            <!-- Dynamic icon -->
+                        </div>
+                    </div>
+                    
+                    <!-- Disposal Advice -->
+                    <div class="bg-gradient-to-br from-amber-50 to-orange-100 rounded-xl p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">💡 Disposal Advice</h3>
+                        <div id="disposalAdvice" class="text-gray-700 leading-relaxed">
+                            <!-- Dynamic content -->
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-6">
+                        <button id="classifyAnother" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                            📷 Classify Another Item
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- How It Works Section -->
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">How It Works</h2>
+                <div class="grid md:grid-cols-4 gap-6">
+                    <div class="text-center">
+                        <div class="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                            <span class="text-2xl">📱</span>
+                        </div>
+                        <h3 class="font-semibold text-gray-800 mb-2">1. Upload</h3>
+                        <p class="text-sm text-gray-600">Take or upload a photo of your waste item</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="bg-green-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                            <span class="text-2xl">🤖</span>
+                        </div>
+                        <h3 class="font-semibold text-gray-800 mb-2">2. Analyze</h3>
+                        <p class="text-sm text-gray-600">AI analyzes the image using advanced recognition</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="bg-purple-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                            <span class="text-2xl">🏷️</span>
+                        </div>
+                        <h3 class="font-semibold text-gray-800 mb-2">3. Classify</h3>
+                        <p class="text-sm text-gray-600">Get biodegradable/non-biodegradable and wet/dry categories</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="bg-amber-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                            <span class="text-2xl">♻️</span>
+                        </div>
+                        <h3 class="font-semibold text-gray-800 mb-2">4. Dispose</h3>
+                        <p class="text-sm text-gray-600">Follow the disposal advice for proper waste management</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-green-100 mt-12">
+            <div class="max-w-4xl mx-auto px-4 py-6 text-center">
+                <p class="text-gray-600">
+                    Powered by Google Gemini AI • Built for a sustainable future 🌱
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript for the frontend -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const imagePreview = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImg');
+            const removeImage = document.getElementById('removeImage');
+            const classifyBtn = document.getElementById('classifyBtn');
+            const loadingState = document.getElementById('loadingState');
+            const resultsSection = document.getElementById('resultsSection');
+            const classifyAnother = document.getElementById('classifyAnother');
+
+            // Handle drag and drop
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                uploadArea.classList.add('dragover');
+            }
+
+            function unhighlight() {
+                uploadArea.classList.remove('dragover');
+            }
+
+            // Handle dropped files
+            uploadArea.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+            }
+
+            // Handle file selection via button
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', function() {
+                handleFiles(this.files);
+            });
+
+            function handleFiles(files) {
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            previewImg.src = e.target.result;
+                            imagePreview.classList.remove('hidden');
+                            uploadArea.querySelector('#uploadContent').classList.add('hidden');
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                }
+            }
+
+            // Remove image
+            removeImage.addEventListener('click', function(e) {
+                e.stopPropagation();
+                fileInput.value = '';
+                previewImg.src = '';
+                imagePreview.classList.add('hidden');
+                uploadArea.querySelector('#uploadContent').classList.remove('hidden');
+            });
+
+            // Classify button
+            classifyBtn.addEventListener('click', async function() {
+                if (fileInput.files.length === 0) return;
+
+                // Show loading state but keep the image preview visible
+                loadingState.classList.remove('hidden');
+                resultsSection.classList.add('hidden');
+
+                try {
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+
+                    // Send to your backend API
+                    const response = await fetch('/classify', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Classification failed');
+                    }
+
+                    const result = await response.json();
+                    
+                    // Update UI with results
+                    updateResultsUI(result);
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An error occurred during classification. Please try again.');
+                } finally {
+                    loadingState.classList.add('hidden');
+                    resultsSection.classList.remove('hidden');
+                }
+            });
+
+            // Classify another button
+            classifyAnother.addEventListener('click', function() {
+                fileInput.value = '';
+                previewImg.src = '';
+                imagePreview.classList.add('hidden');
+                resultsSection.classList.add('hidden');
+                uploadArea.querySelector('#uploadContent').classList.remove('hidden');
+            });
+
+            // Update results UI with classification data
+            function updateResultsUI(data) {
+                console.log('Received data from server:', JSON.stringify(data, null, 2));
+                
+                // 1. Primary classification - Biodegradable/Non-biodegradable
+                const isBiodegradable = data.is_biodegradable || false;
+                const primaryCategory = isBiodegradable ? 'Biodegradable' : 'Non-biodegradable';
+                const primaryConfidence = data.primary_confidence || data.confidence || 0;
+                
+                // 2. Secondary classification - Wet/Dry
+                const moisture = data.moisture || 'dry';
+                const secondaryCategory = moisture.charAt(0).toUpperCase() + moisture.slice(1);
+                const secondaryConfidence = data.secondary_confidence || Math.max(0, primaryConfidence - 5);
+                
+                // Update primary classification
+                document.getElementById('primaryResult').textContent = primaryCategory;
+                document.getElementById('primaryConfidence').style.width = `${primaryConfidence}%`;
+                document.getElementById('primaryPercentage').textContent = `${primaryConfidence}%`;
+                
+                // Update secondary classification (Wet/Dry)
+                document.getElementById('secondaryResult').textContent = secondaryCategory;
+                document.getElementById('secondaryConfidence').style.width = `${secondaryConfidence}%`;
+                document.getElementById('secondaryPercentage').textContent = `${secondaryConfidence}%`;
+                
+                // 3. Combined Category Display - Left Aligned with Larger Text
+                const moistureStatus = data.moisture ? data.moisture.charAt(0).toUpperCase() + data.moisture.slice(1) : 'Dry';
+                const recyclability = (data.recyclability || 'medium').toUpperCase();
+                
+                // Update combined category to show left-aligned with larger text
+                const combinedHTML = `
+                    <div class="p-4 text-left">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <span class="px-4 py-2 rounded-full text-base font-medium 
+                                ${data.is_biodegradable ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">
+                                ${data.is_biodegradable ? 'Biodegradable' : 'Non-biodegradable'}
+                            </span>
+                            <span class="px-4 py-2 rounded-full text-base font-medium bg-blue-100 text-blue-800">
+                                ${moistureStatus}
+                            </span>
+                            <span class="px-4 py-2 rounded-full text-base font-medium 
+                                ${recyclability === 'HIGH' ? 'bg-green-100 text-green-800' : 
+                                  recyclability === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' : 
+                                  'bg-red-100 text-red-800'}">
+                                ${recyclability} Recyclable
+                            </span>
+                        </div>
+                    </div>`;
+                
+                document.getElementById('combinedResult').innerHTML = combinedHTML;
+                
+                // Set category icon based on biodegradability
+                const categoryIcon = document.getElementById('categoryIcon');
+                if (isBiodegradable) {
+                    categoryIcon.innerHTML = '🌱';
+                    categoryIcon.classList.remove('text-amber-500');
+                    categoryIcon.classList.add('text-green-500');
+                } else {
+                    categoryIcon.innerHTML = '⚠️';
+                    categoryIcon.classList.remove('text-green-500');
+                    categoryIcon.classList.add('text-amber-500');
+                }
+                
+                // Update disposal advice
+                const disposalAdvice = data.disposal_advice || 
+                    (isBiodegradable 
+                        ? 'This item is biodegradable and can be composted.' 
+                        : 'Please dispose of this item according to local recycling guidelines.');
+                        
+                document.getElementById('disposalAdvice').innerHTML = 
+                    `<p class="text-gray-700 leading-relaxed">${disposalAdvice}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
